@@ -435,7 +435,7 @@ class CacheTest(TestCase):
             text='Тестовый текст',
             author=cls.post_author
         )
-    
+
     def setUp(self):
         cache.clear()
 
