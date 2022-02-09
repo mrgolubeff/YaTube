@@ -435,10 +435,11 @@ class CacheTest(TestCase):
             text='Тестовый текст',
             author=cls.post_author
         )
+    
+    def setUp(self):
+        cache.clear()
 
     def test_cache(self):
-        Post.objects.count()
-
         response1 = self.client.get(
             reverse('posts:index')
         )
@@ -454,7 +455,6 @@ class CacheTest(TestCase):
         )
 
         Post.objects.filter(id=CacheTest.post_in_cache.id).delete()
-        Post.objects.count()
 
         response2 = self.client.get(
             reverse('posts:index')
@@ -472,7 +472,8 @@ class CacheTest(TestCase):
         )
         content3 = response3.content
         self.assertNotEqual(
-            content1, content3,
+            content1,
+            content3,
             'Пост остался на странице после очистки кэша'
         )
 
