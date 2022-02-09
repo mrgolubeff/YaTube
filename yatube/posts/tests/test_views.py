@@ -436,16 +436,12 @@ class CacheTest(TestCase):
             author=cls.post_author
         )
 
-    def get_response(self):
-        response = self.client.get(
-            reverse('posts:index')
-        )
-        return response
-
     def test_cache(self):
         Post.objects.count()
 
-        response1 = self.get_response()
+        response1 = self.client.get(
+            reverse('posts:index')
+        )
         content1 = response1.content
         context1 = response1.context
         page_obj1 = context1.get('page_obj')
@@ -460,7 +456,9 @@ class CacheTest(TestCase):
         Post.objects.filter(id=CacheTest.post_in_cache.id).delete()
         Post.objects.count()
 
-        response2 = self.get_response()
+        response2 = self.client.get(
+            reverse('posts:index')
+        )
         content2 = response2.content
         self.assertEqual(
             content1, content2,
@@ -469,7 +467,9 @@ class CacheTest(TestCase):
 
         cache.clear()
 
-        response3 = self.get_response()
+        response3 = self.client.get(
+            reverse('posts:index')
+        )
         content3 = response3.content
         self.assertNotEqual(
             content1, content3,
