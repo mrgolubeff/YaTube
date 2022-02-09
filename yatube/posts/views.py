@@ -1,11 +1,10 @@
-from functools import wraps
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic.base import TemplateView
 
 from yatube.settings import POSTS_BY_PAGE
 
+from .decorators import author_required
 from .forms import CommentForm, PostForm
 from .models import Comment, Follow, Group, Post, User
 from .utils import paginator_func
@@ -15,22 +14,13 @@ class PostCreatedView(TemplateView):
     template_name = 'posts/post_created.html'
 
 
-def author_required(func):
-    @wraps(func)
-    def is_author(request, post_id, *args, **kwargs):
-        post = get_object_or_404(Post, pk=post_id)
-        if post.author.id == request.user.id:
-            return func(request, post_id, *args, **kwargs)
-        return redirect('posts:post_detail', post_id=post_id)
-    return is_author
-
-
 def index(request):
-    post_list = Post.objects.all()
+    post_list = Post.objects.select_related('group').all()
     page_obj = paginator_func(request, post_list, POSTS_BY_PAGE)
 
     context = {
         'page_obj': page_obj,
+        'index': True
     }
     template = 'posts/index.html'
     return render(request, template, context)
@@ -82,14 +72,9 @@ def post_detail(request, post_id):
     post_preview = post.__str__()
     comments = Comment.objects.filter(post=post)
 
-    if request.user.id == post.author.id:
-        is_author = True
-    else:
-        is_author = False
+    is_author = request.user.id == post.author.id
 
-    form = CommentForm(
-        # request.POST or None
-    )
+    form = CommentForm()
 
     context = {
         'post': post,
@@ -177,6 +162,7 @@ def follow_index(request):
 
     context = {
         'page_obj': page_obj,
+        'index': False
     }
     template = 'posts/follow.html'
     return render(request, template, context)
@@ -188,11 +174,10 @@ def profile_follow(request, username):
 
     if (
         request.user != following
-        and not Follow.objects.filter(
-            user=request.user, author=following
-        ).exists()
     ):
-        Follow.objects.create(user=request.user, author=following)
+        Follow.objects.get_or_create(
+            user=request.user, author=following
+        )
         return redirect('posts:profile', username=following.username)
     else:
         return redirect('posts:index')
@@ -204,9 +189,6 @@ def profile_unfollow(request, username):
 
     if (
         request.user != following
-        and Follow.objects.filter(
-            user=request.user, author=following
-        ).exists()
     ):
         Follow.objects.filter(user=request.user, author=following).delete()
         return redirect('posts:profile', username=following.username)

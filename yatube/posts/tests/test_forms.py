@@ -162,6 +162,23 @@ class ImageFormTest(TestCase):
         cls.img_uploader = User.objects.create(
             username=cls.img_uploader_usrnm
         )
+        cls.test_dict = {
+            'small_gif_b': (
+                b'\x47\x49\x46\x38\x39\x61\x02\x00'
+                b'\x01\x00\x80\x00\x00\x00\x00\x00'
+                b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+                b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+                b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+                b'\x0A\x00\x3B'
+            ),
+            'gif_name': 'small.gif',
+            'gif_address': 'posts/small.gif',
+            'content_type': 'image/gif',
+            'post_text': 'Тестовый текст',
+            'reverse_for_post_create': reverse(
+                'posts:post_create'
+            )
+        }
 
     @classmethod
     def tearDownClass(cls):
@@ -172,36 +189,38 @@ class ImageFormTest(TestCase):
         self.client.force_login(ImageFormTest.img_uploader)
 
     def test_upload_gif_to_db(self):
+        test_dict = ImageFormTest.test_dict
+
         posts_count = Post.objects.count()
 
-        small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
+        small_gif = test_dict['small_gif_b']
+
         uploaded_img = SimpleUploadedFile(
-            name='small.gif',
+            name=test_dict['gif_name'],
             content=small_gif,
-            content_type='image/gif'
+            content_type=test_dict['content_type']
         )
         form_data = {
-            'text': 'Тестовый текст',
+            'text': test_dict['post_text'],
             'image': uploaded_img
         }
         self.client.post(
-            reverse('posts:post_create'),
+            test_dict['reverse_for_post_create'],
             data=form_data
         )
 
+        post_query = Post.objects.order_by('pk')
+        last_post = post_query[len(post_query) - 1]
+        post_exists = Post.objects.filter(
+            id=last_post.id,
+            text=test_dict['post_text'],
+            image=test_dict['gif_address'],
+            author=ImageFormTest.img_uploader
+        ).exists()
+
         self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertTrue(
-            Post.objects.filter(
-                text='Тестовый текст',
-                image='posts/small.gif'
-            ).exists()
+            post_exists
         )
 
 
@@ -247,12 +266,13 @@ class CommentsTest(TestCase):
         comment_query = Comment.objects.order_by('id')
         last_comment = comment_query[len(comment_query) - 1]
         comment_exists = Comment.objects.filter(
+            post=CommentsTest.post_with_comment,
             id=last_comment.id,
             text=self.cm_text
         ).exists()
         self.assertEqual(
             Comment.objects.count(), comment_count + 1,
-            'Нового комментарий нет в базе'
+            'Нового комментария нет в базе'
         )
         self.assertTrue(comment_exists)
 

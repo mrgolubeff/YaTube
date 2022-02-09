@@ -493,6 +493,9 @@ class SubscriptionTest(TestCase):
         cls.non_follower = User.objects.create(
             username='non follower'
         )
+        cls.unfollower = User.objects.create(
+            username='unfollower'
+        )
 
         cls.reverse_follow = reverse(
             'posts:profile_follow',
@@ -519,29 +522,47 @@ class SubscriptionTest(TestCase):
         self.follower.force_login(SubscriptionTest.follower)
         self.non_follower = Client()
         self.non_follower.force_login(SubscriptionTest.non_follower)
+        self.unfollower = Client()
+        self.unfollower.force_login(SubscriptionTest.unfollower)
 
         self.post = Post.objects.create(
             author=SubscriptionTest.author,
             text='Тестовый пост'
         )
 
-    def test_subscription_unsubscription(self):
+    def test_subscription(self):
         follow_count = Follow.objects.count()
         self.follower.get(SubscriptionTest.reverse_follow)
         subscription_exists = Follow.objects.filter(
             user=SubscriptionTest.follower,
             author=SubscriptionTest.author
-        )
+        ).exists()
         self.assertTrue(
             subscription_exists,
             'Подписка не оформилась'
         )
-
-        self.follower.get(SubscriptionTest.reverse_unfollow)
         self.assertEqual(
+            follow_count + 1,
+            Follow.objects.count()
+        )
+
+    def test_unsubscription(self):
+        self.unfollower.get(SubscriptionTest.reverse_follow)
+        follow_count = Follow.objects.count()
+        self.unfollower.get(SubscriptionTest.reverse_unfollow)
+        subscription_exists = Follow.objects.filter(
+            user=SubscriptionTest.unfollower,
+            author=SubscriptionTest.author
+        ).exists()
+
+        self.assertFalse(
+            subscription_exists,
+            'Подписка отписавшегося пользователя все еще существует'
+        )
+        self.assertNotEqual(
             follow_count,
             Follow.objects.count(),
-            'Подписка не удалилась'
+            'Кол-во записей в базе не изменилось после отписки'
         )
 
     def test_subscription_context(self):
